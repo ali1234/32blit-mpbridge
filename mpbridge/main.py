@@ -36,11 +36,11 @@ async def handle_client(client):
 async def handle_client_comms(client, other_client):
     try:
         print(f"comms {client}, {other_client}: starting")
-        if isinstance(client, TCPClient): # or USBClient, or Client
-            print(f"comms {client}, {other_client}: ", b'32BLMTLI\x01')
-            await client.send_all(b'32BLMTLI\x01')
+        if isinstance(other_client, USBClient): # or USBClient, or Client
+            print(f"comms _____ -> {other_client}: ", b'32BLMLTI\x01')
+            await other_client.send_all(b'32BLMLTI\x01')
         async for data in client:
-            print(f"comms {client}, {other_client}: ", data)
+            print(f"comms {client} -> {other_client}: ", data)
             await other_client.send_all(data)
         print(f"comms {client}, {other_client}: client disconnected")
         client.done.set()
