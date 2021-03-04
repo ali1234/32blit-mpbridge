@@ -23,7 +23,7 @@ async def handle_client(client):
                 async with trio.open_nursery() as nursery:
                     nursery.start_soon(handle_client_comms, client, other_client)
                     nursery.start_soon(handle_client_comms, other_client, client)
-            except ClientPairingBroken:
+            except (ClientPairingBroken, trio.MultiError):
                 pass
         else:
             print(f"client pending {client}")
