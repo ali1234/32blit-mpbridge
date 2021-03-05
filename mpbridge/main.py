@@ -13,24 +13,28 @@ pending_client = []
 class ClientPairingBroken(Exception):
     pass
 
+loopback = False
 
 async def handle_client(client):
     print(f"client connect {client}")
-    while not client.done.is_set():
-        if pending_client:
-            other_client = pending_client.pop()
-            print(f"pairing clients {client}, {other_client}")
-            try:
-                async with trio.open_nursery() as nursery:
-                    nursery.start_soon(handle_client_comms, client, other_client)
-                    nursery.start_soon(handle_client_comms, other_client, client)
-            except (ClientPairingBroken, trio.MultiError):
-                pass
-        else:
-            print(f"client pending {client}")
-            pending_client.append(client)
-        await client.unpaired.acquire()
-        print(f"client unpaired {client}")
+    if loopback:
+        await handle_client_comms(client, client)
+    else:
+        while not client.done.is_set():
+            if pending_client:
+                other_client = pending_client.pop()
+                print(f"pairing clients {client}, {other_client}")
+                try:
+                    async with trio.open_nursery() as nursery:
+                        nursery.start_soon(handle_client_comms, client, other_client)
+                        nursery.start_soon(handle_client_comms, other_client, client)
+                except (ClientPairingBroken, trio.MultiError):
+                    pass
+            else:
+                print(f"client pending {client}")
+                pending_client.append(client)
+            await client.unpaired.acquire()
+            print(f"client unpaired {client}")
     print(f"client disconnect {client}")
 
 
@@ -45,7 +49,7 @@ async def handle_client_comms(client, other_client):
             await other_client.send_all(data)
         print(f"comms {client}, {other_client}: client disconnected")
         client.done.set()
-        if isinstance(other_client, Client): # or USBClient, or Client
+        if isinstance(other_client, Client): # or USBClient, or TCPClient
             print(f"comms _____ -> {other_client}: ", b'32BLMLTI\x00')
             await other_client.send_all(b'32BLMLTI\x00')
         raise ClientPairingBroken
@@ -90,5 +94,8 @@ async def asyncmain():
 
 
 @click.command()
-def main():
+@click.option('-l', '--loop', is_flag=True)
+def main(loop):
+    global loopback
+    loopback = loop
     trio.run(asyncmain)
