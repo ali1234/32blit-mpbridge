@@ -18,7 +18,10 @@ loopback = False
 async def handle_client(client):
     print(f"client connect {client}")
     if loopback:
-        await handle_client_comms(client, client)
+        try:
+            await handle_client_comms(client, client)
+        except ClientPairingBroken:
+            pass
     else:
         while not client.done.is_set():
             if pending_client:
